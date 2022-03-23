@@ -1,0 +1,31 @@
+[Environment]
+cam_extrinsics = {height=12, dist=27}
+ip = "10.36.56.12"
+
+[Register]
+# Register targets under certain names so they can be referenced in events
+some = "/home/pantaelaman/Documents/pi_build/some.py"
+other = "/home/pantaelaman/Documents/pi_build/other.py"
+
+[Signals]
+# Register events under the init signal, which is called on initialization
+init = [
+    "onstartup"
+]
+target_terminated = [
+    # Calls the event "finishedother" when the target "other" finishes running
+    {event = "runsome", conditions = {name = "other"}}
+]
+retrieved_value = [
+    {event = "runsome", conditions = {value = "ip"}}
+]
+
+[Events.onstartup]
+targets = ["other"] # Select the registered targets you want to run
+
+[Events.runsome]
+targets = ["some"]
+args = [
+    {type = "literal", value = "-l"},
+    {type = "dynamic", relation = "name"},
+]

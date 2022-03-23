@@ -1,0 +1,12 @@
+# An example of an autorestart script
+[Register]
+some = "/home/pantaelaman/Documents/pi_build/other.py"
+
+[Signals]
+init = ["restart"]
+target_terminated = [
+    {event = "restart", conditions = {name = "some"}}
+]
+
+[Events.restart]
+targets = ["some"]
