@@ -2,7 +2,8 @@
 import argparse
 
 argparser = argparse.ArgumentParser()
-argparser.add_argument('-l', '--hello', action='store', default="nuts, balls even", dest='hello')
+argparser.add_argument('-l', '--hello', action='store', default="unknown", dest='hello')
+argparser.add_argument('-p', '--primary', action='store', default="Finished target ", dest='primary')
 args = argparser.parse_args()
 
-print("Finished target " + args.hello)
+print(args.primary + args.hello)

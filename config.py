@@ -39,7 +39,7 @@ class Event:
         self.targets = targets
         self.args = args
 
-    def run(self, signal_environment: Dict[str, Any] = {}):
+    def run(self, signal_environment: Dict[str, Any] = {}, environment: Dict[str, Any] = {}):
         for target in self.targets:
             args = []
             for arg in self.args:
@@ -58,6 +58,19 @@ class Event:
                             return
                     else:
                         args.append(str(signal_value))
+                elif argtype == 'environment':
+                    relation = arg.get('relation')
+                    if relation is None: continue
+                    optional = arg.get('optional')
+                    if optional is None: optional = False
+                    environment_value = environment.get(relation)
+                    if environment_value is None:
+                        if optional:
+                            continue
+                        else:
+                            return
+                    else:
+                        args.append(str(environment_value))
                 elif argtype == 'literal':
                     value = arg.get('value')
                     if value is not None: args.append(str(value))
@@ -80,7 +93,6 @@ class DataStore:
     
     def put_value(self, key: str, value):
         self.data[key] = value
-        self.post()
         if self.config is not None:
             self.config.signal('updated_value', {'value': key, 'to': value})
 
@@ -90,11 +102,12 @@ class DataStore:
         return self.data.get(key)
 
     def update(self):
-        self.data = toml.load(self.fpath)
+        if self.config is None: return
+        self.data = self.config.update()
     
     def post(self):
-        with open(self.fpath, 'w') as file:
-            toml.dump(self.data, file)
+        if self.config is None: return
+        self.config.post()
 
 class Signal:
     def __init__(self, event: Event, conditions: Dict[str, str] = None):
@@ -104,18 +117,23 @@ class Signal:
         else:
             self.conditions = {}
     
-    def run(self, args: Dict[str, str]):
+    def run(self, args: Dict[str, Any], environment: Dict[str, Any]):
         run = True
         if args is None:
             args = {}
         for arg in args:
             condition = self.conditions.get(arg)
             if condition is not None:
-                if args[arg] != condition:
-                    run = False
-                    break
+                if condition[0] == '!':
+                    if args[arg] == condition[1:]:
+                        run = False
+                        break
+                else:
+                    if args[arg] != condition:
+                        run = False
+                        break
         if run:
-            self.event.run(args)
+            self.event.run(args, environment)
 
 class Config:
     def __init__(self, file: PathLike):
@@ -179,7 +197,20 @@ class Config:
         events = self.signals.get(signal)
         if events is not None:
             for event in events:
-                event.run(args)
+                event.run(args, self.data.data)
+    
+    def update(self):
+        self.full_data = toml.load(self.fpath)
+        loaded_data = self.full_data.get['Environment']
+        if loaded_data is not None:
+            self.data.data = loaded_data
+        else:
+            self.data.data = {}
+
+    def post(self):
+        self.full_data['Environment'] = self.data.data
+        with open(self.fpath, 'w') as f:
+            toml.dump(self.full_data, f)
 
 config = None
 
